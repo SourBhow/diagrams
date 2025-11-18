@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Real-Time Fraud Detection Architecture</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-elevated: #141a33;
+    --bg-elevated-soft: #141a33dd;
+    --accent: #4f9cff;
+    --accent-soft: #4f9cff22;
+    --accent-strong: #61d9a5;
+    --border-subtle: #29314c;
+    --text-main: #f5f7ff;
+    --text-muted: #a0a7c4;
+    --shadow-soft: 0 14px 40px rgba(0, 0, 0, 0.35);
+    --radius-lg: 16px;
+    --radius-md: 10px;
+    --radius-pill: 999px;
+    --gap-lg: 28px;
+    --gap-md: 18px;
+    --gap-sm: 10px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, sans-serif;
+    background: radial-gradient(circle at top, #192244 0, #050714 55%, #02030a 100%);
+    color: var(--text-main);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(90deg, #152341, transparent);
+    border: 1px solid rgba(79, 156, 255, 0.35);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+  }
+
+  .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-strong);
+    box-shadow: 0 0 0 0 rgba(97, 217, 165, 0.6);
+    animation: pulse 1.9s infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(97, 217, 165, 0.55);
+    }
+    70% {
+      transform: scale(1.7);
+      box-shadow: 0 0 0 14px rgba(97, 217, 165, 0);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(97, 217, 165, 0);
+    }
+  }
+
+  h1 {
+    font-size: 1.45rem;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .diagram-grid {
+    display: grid;
+    gap: 22px;
+  }
+
+  /* Main real-time path row */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-md);
+    padding: 18px 14px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(
+        135deg,
+        rgba(97, 217, 165, 0.08),
+        rgba(79, 156, 255, 0.06)
+      ),
+      radial-gradient(circle at top left, #1d2644, #050714);
+    border: 1px solid rgba(132, 162, 255, 0.3);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .pipeline-title {
+    font-size: 0.8rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pipeline-title span.highlight {
+    color: var(--accent-strong);
+    border-radius: var(--radius-pill);
+    padding: 3px 9px;
+    border: 1px solid rgba(97, 217, 165, 0.5);
+    background: linear-gradient(
+      90deg,
+      rgba(97, 217, 165, 0.17),
+      rgba(5, 7, 20, 0.6)
+    );
+    font-size: 0.75rem;
+  }
+
+  .pipeline-flow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-md);
+  }
+
+  /* Info boxes */
+  .stage {
+    position: relative;
+    flex: 1;
+    border-radius: var(--radius-md);
+    padding: 12px 12px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .stage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+    gap: 6px;
+  }
+
+  .stage-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .stage-tag {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    background: rgba(79, 156, 255, 0.14);
+    border: 1px solid rgba(79, 156, 255, 0.35);
+    white-space: nowrap;
+  }
+
+  .stage-body {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .stage-body ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 4px 0 0;
+  }
+
+  .stage-body li {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    margin: 2px 0;
+  }
+
+  .stage-bullet {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(160, 167, 196, 0.7);
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .stage-meta {
+    margin-top: 6px;
+    font-size: 0.68rem;
+    color: var(--accent-strong);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip {
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(97, 217, 165, 0.55);
+    background: rgba(18, 45, 35, 0.9);
+  }
+
+  .chip.secondary {
+    border-color: rgba(79, 156, 255, 0.5);
+    background: rgba(12, 30, 60, 0.92);
+    color: #c3d6ff;
+  }
+
+  /* Arrows */
+  .arrow-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .arrow {
+    position: relative;
+    width: 54px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.85;
+  }
+
+  .arrow::after {
+    content: "";
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%) rotate(0deg);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid var(--accent);
+  }
+
+  .arrow-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    text-align: center;
+  }
+
+  /* Secondary row: monitoring + training */
+  .secondary-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-md);
+    padding: 14px 12px 13px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(
+        135deg,
+        rgba(79, 156, 255, 0.02),
+        rgba(97, 217, 165, 0.02)
+      ),
+      rgba(10, 13, 33, 0.95);
+    border: 1px solid rgba(50, 80, 160, 0.6);
+  }
+
+  .secondary-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .secondary-title {
+    font-size: 0.8rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+  }
+
+  .legend-dot.live {
+    background: linear-gradient(135deg, #61d9a5, #3fb67f);
+    box-shadow: 0 0 0 1px rgba(97, 217, 165, 0.4);
+  }
+
+  .legend-dot.offline {
+    background: linear-gradient(135deg, #4f9cff, #325fdf);
+    box-shadow: 0 0 0 1px rgba(79, 156, 255, 0.5);
+  }
+
+  .secondary-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-md);
+  }
+
+  .monitoring-training {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-md);
+  }
+
+  .vertical-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    justify-content: center;
+  }
+
+  .vertical-arrow-line {
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    opacity: 0.8;
+    position: relative;
+  }
+
+  .vertical-arrow-line::after {
+    content: "";
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid var(--accent);
+  }
+
+  .vertical-arrow-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .note {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 6px;
+  }
+
+  .note::before {
+    content: "ℹ";
+    font-size: 0.78rem;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: -1px;
+  }
+
+  /* Responsive layout adjustments */
+  @media (min-width: 700px) {
+    body {
+      padding: 26px;
+    }
+
+    h1 {
+      font-size: 1.7rem;
+    }
+
+    .diagram-grid {
+      gap: 26px;
+    }
+
+    .pipeline-flow {
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .stage {
+      min-height: 130px;
+    }
+
+    .secondary-body {
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .monitoring-training {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .vertical-arrow {
+      min-width: 56px;
+    }
+
+    .arrow-row {
+      margin-top: 3px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="header">
+    <div class="eyebrow">
+      <span class="pulse-dot"></span>
+      Real-time fraud detection
+    </div>
+    <h1>Graph-Based Risk Scoring Architecture</h1>
+    <p class="subtitle">
+      End‑to‑end data flow from live bank transactions through graph neural network
+      scoring to continuous monitoring and model retraining.
+    </p>
+  </header>
+
+  <main class="diagram-grid">
+    <!-- MAIN REAL-TIME PIPELINE -->
+    <section class="pipeline" aria-label="Real-time scoring pipeline">
+      <div class="pipeline-title">
+        Real‑time decisioning path
+        <span class="highlight">P99 latency &lt; 150 ms</span>
+      </div>
+
+      <div class="pipeline-flow">
+        <!-- Stage 1: Bank transaction stream -->
+        <article class="stage">
+          <div class="stage-header">
+            <div class="stage-title">Bank Transaction Stream</div>
+            <div class="stage-tag">Event sources</div>
+          </div>
+          <div class="stage-body">
+            <ul>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Core banking ledgers &amp; posting engines</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Card networks &amp; payment schemes (POS, e‑commerce, ATM)</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Payment gateways, wallets, and faster‑payments rails</span>
+              </li>
+            </ul>
+            <div class="stage-meta">
+              <span class="chip secondary">High‑volume, append‑only events</span>
+            </div>
+          </div>
+        </article>
+
+        <div>
+          <div class="arrow-row">
+            <div class="arrow"></div>
+          </div>
+          <div class="arrow-label">Fraud scoring request (JSON / REST)</div>
+        </div>
+
+        <!-- Stage 2: API Gateway -->
+        <article class="stage">
+          <div class="stage-header">
+            <div class="stage-title">REST API Gateway</div>
+            <div class="stage-tag">Orchestration</div>
+          </div>
+          <div class="stage-body">
+            <ul>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Authenticates the bank and validates schema</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Enriches request with device, channel, and geo metadata</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Routes to active GNN model version with feature flags</span>
+              </li>
+            </ul>
+            <div class="stage-meta">
+              <span class="chip">SLA enforcement &amp; rate limiting</span>
+              <span class="chip secondary">Audit logging</span>
+            </div>
+          </div>
+        </article>
+
+        <div>
+          <div class="arrow-row">
+            <div class="arrow"></div>
+          </div>
+          <div class="arrow-label">Low‑latency RPC / streaming</div>
+        </div>
+
+        <!-- Stage 3: GNN Engine -->
+        <article class="stage">
+          <div class="stage-header">
+            <div class="stage-title">Graph Neural Network Engine</div>
+            <div class="stage-tag">Real‑time inference</div>
+          </div>
+          <div class="stage-body">
+            <ul>
+              <li>
+                <span class="stage-bullet"></span>
+                <span><strong>Entity graph builder:</strong> links cards, devices, merchants, accounts, IPs</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span><strong>Feature extraction:</strong> network‑aware features (velocity, connectivity, anomaly scores)</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span><strong>Real‑time risk scoring:</strong> GNN + ensemble models for fraud probability</span>
+              </li>
+            </ul>
+            <div class="stage-meta">
+              <span class="chip">Historical Transaction DB</span>
+              <span class="chip secondary">Fraud‑Label Repository</span>
+            </div>
+          </div>
+        </article>
+
+        <div>
+          <div class="arrow-row">
+            <div class="arrow"></div>
+          </div>
+          <div class="arrow-label">Decision payload</div>
+        </div>
+
+        <!-- Stage 4: Response to Bank -->
+        <article class="stage">
+          <div class="stage-header">
+            <div class="stage-title">Response to Bank</div>
+            <div class="stage-tag">Decision &amp; actions</div>
+          </div>
+          <div class="stage-body">
+            <ul>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Risk score and fraud probability (0‑1)</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Recommended action (approve, decline, step‑up verification)</span>
+              </li>
+              <li>
+                <span class="stage-bullet"></span>
+                <span>Key explainability signals (top contributing entities &amp; features)</span>
+              </li>
+            </ul>
+            <div class="stage-meta">
+              <span class="chip">Synchronous response</span>
+              <span class="chip secondary">Logged for monitoring &amp; training</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- MONITORING + RETRAINING LOOP -->
+    <section class="secondary-row" aria-label="Monitoring and model lifecycle">
+      <div class="secondary-header">
+        <div class="secondary-title">Continuous learning loop</div>
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-dot live"></span> <span>Live decisions</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot offline"></span> <span>Offline training</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="secondary-body">
+        <div class="monitoring-training">
+          <!-- Performance Monitoring -->
+          <article class="stage">
+            <div class="stage-header">
+              <div class="stage-title">Performance Monitoring</div>
+              <div class="stage-tag">Live feedback</div>
+            </div>
+            <div class="stage-body">
+              <ul>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span>Tracks true/false positives and negatives from labelled outcomes</span>
+                </li>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span>Detects data and concept drift across channels &amp; segments</span>
+                </li>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span>Surfaces alerting dashboards &amp; automatic rollback triggers</span>
+                </li>
+              </ul>
+              <div class="stage-meta">
+                <span class="chip">Feedback from chargebacks &amp; disputes</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Vertical Arrow between monitoring and training -->
+          <div class="vertical-arrow" aria-hidden="true">
+            <div class="vertical-arrow-line"></div>
+            <div class="vertical-arrow-label">Labelled events &amp;<br />drift signals</div>
+          </div>
+
+          <!-- Model Retraining Pipeline -->
+          <article class="stage">
+            <div class="stage-header">
+              <div class="stage-title">Model Retraining Pipeline</div>
+              <div class="stage-tag">Offline training</div>
+            </div>
+            <div class="stage-body">
+              <ul>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span><strong>Data refresh:</strong> ingest new transactions, graph snapshots, and labels</span>
+                </li>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span><strong>Backtesting:</strong> replay on historical data, compare against current model</span>
+                </li>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span><strong>Validation &amp; QA:</strong> fairness, stability, and explainability checks</span>
+                </li>
+                <li>
+                  <span class="stage-bullet"></span>
+                  <span><strong>Deployment:</strong> rollout new model version via canary/A‑B and blue‑green</span>
+                </li>
+              </ul>
+              <div class="stage-meta">
+                <span class="chip">Versioned models &amp; feature stores</span>
+                <span class="chip secondary">Tight loop with monitoring</span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <p class="note">
+          Every transaction flows through the real‑time path once, but its outcome
+          and subsequent labels continuously feed the monitoring layer and
+          retraining pipeline, keeping the GNN engine aligned with the latest
+          fraud patterns.
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
